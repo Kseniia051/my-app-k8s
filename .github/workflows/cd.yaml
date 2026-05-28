@@ -1,0 +1,38 @@
+name: CD — Deploy to Kubernetes
+
+on:
+  workflow_run:
+    workflows: ["CI — Build and Push Docker Image"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Get SHA
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Update image tag
+        run: |
+          sed -i 's|IMAGE_TAG|sha-${{ steps.sha.outputs.short }}|g' k8s/app-deployment.yaml
+
+      - name: Apply manifests
+        run: kubectl apply -f k8s/
+
+      - name: Rollout status
+        run: kubectl rollout status deployment/app-deployment -n my-app
+
