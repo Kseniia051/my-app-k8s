@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM --platform=linux/amd64 node:20-alpine
 
 WORKDIR /app
 
@@ -8,7 +8,5 @@ RUN npm ci
 COPY . .
 
 EXPOSE 3000
-
-ENTRYPOINT []
 
 CMD ["node", "server.js"]
